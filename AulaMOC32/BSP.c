@@ -3081,27 +3081,19 @@ void BSP_LCD_FillCircle(int16_t x, int16_t y, int16_t r, uint16_t color)
 
 	//Jaemilton way
 	//Garante que os parametro passados sao validos
-	if (x >= 128 || y >= 128) return;
+	if (x >= _width || y >= _height) return;
 	if (r == 0) return;
 	if ((x - r) < 0) return;
 	if ((y - r) < 0) return;
-	if ((x + r) > (128)) return;
-	if ((y + r) > (128)) return;
+	if ((x + r) > (_width)) return;
+	if ((y + r) > (_height)) return;
 
-	//Desenha o centro do circulo
-	//BSP_LCD_DrawPixel(x, y, color);
-
-	for(int i = 0; i <= 90; i++)
-	{
-		unsigned char xrad, yrad;
-		double angulo = i * 3.14159265 / 180;
-		xrad = r * cos(angulo);
-		yrad = r * sin(angulo);
-
+	unsigned char xrad;
+	// Uma vez que sabemos quantas linhas serão desenhadas (r*2), calculamos
+	// o comprimento de cada uma delas.
+	for(char yrad = 0; yrad <= r;++yrad){
+		xrad = r * cos(asin((double)yrad/r));
 		BSP_LCD_DrawFastHLine(x - xrad, y + yrad, xrad*2, color);
-		if (xrad > 0 && yrad > 0)
-		{
-			BSP_LCD_DrawFastHLine(x - xrad, y - yrad, xrad*2, color);
-		}
-	}		
+		BSP_LCD_DrawFastHLine(x - xrad, y - yrad, xrad*2, color);
+	}
 }
