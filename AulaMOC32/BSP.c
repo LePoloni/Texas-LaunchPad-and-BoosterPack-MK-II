@@ -16,6 +16,12 @@
  *	Foi implementada uma função para impressão de Bitmap no formato de 24 bits
  *	Revisão: 1 (19/03/2019)
  *	Implementadas funções para desenho de retângulo e circulo
+ *	Revisão: 2 (31/03/2019)
+ *	Correção na função para desenho de circulo
+ *	Implementadas funções para desenho de circulo preenchido
+ *	Revisão: 3 (01/04/2019)
+ *	Alterei o clock do LCD de 4 MHz para 8 MHz
+ *	Correções nas funções para desenho de circulos
  */
 
 /* This example accompanies the books
@@ -1283,10 +1289,17 @@ void static commonInit(const uint8_t *cmdList) {
   SSI2_CR1_R &= ~SSI_CR1_MS;            // master mode
                                         // configure for clock from source PIOSC for baud clock source
   SSI2_CC_R = (SSI2_CC_R&~SSI_CC_CS_M)+SSI_CC_CS_PIOSC;
-                                        // clock divider for 4 MHz SSIClk (16 MHz PIOSC/4)
+
+//Leandro (01/04/2019) - Aumentei o clock do LCD para 8 MHz
+//                                        // clock divider for 4 MHz SSIClk (16 MHz PIOSC/4)
+//                                        // PIOSC/(CPSDVSR*(1+SCR))
+//                                        // 16/(4*(1+0)) = 4 MHz
+//  SSI2_CPSR_R = (SSI2_CPSR_R&~SSI_CPSR_CPSDVSR_M)+4; // must be even number
+	                                      // clock divider for 8 MHz SSIClk (16 MHz PIOSC/2)
                                         // PIOSC/(CPSDVSR*(1+SCR))
-                                        // 16/(4*(1+0)) = 4 MHz
-  SSI2_CPSR_R = (SSI2_CPSR_R&~SSI_CPSR_CPSDVSR_M)+4; // must be even number
+                                        // 16/(2*(1+0)) = 8 MHz
+  SSI2_CPSR_R = (SSI2_CPSR_R&~SSI_CPSR_CPSDVSR_M)+2; // must be even number	
+		
   SSI2_CR0_R &= ~(SSI_CR0_SCR_M |       // SCR = 0 (4 Mbps data rate)
                   SSI_CR0_SPH |         // SPH = 0
                   SSI_CR0_SPO);         // SPO = 0
@@ -2842,6 +2855,7 @@ void BSP_LCD_DrawBitmap4Bits(int16_t x, int16_t y, const unsigned char *image, i
 }
 
 //Leandro (03/03/2019) - função para impressão de Bitmap no formato 24 bits
+//------------BSP_LCD_DrawBitmap24bits------------
 // (x,y) is the screen location of the lower left corner of BMP image
 // Requires (11 + w*h) bytes of transmission (assuming image fully on screen)
 // Input: x     horizontal position of the bottom left corner of the image, columns from the left edge
@@ -2851,7 +2865,8 @@ void BSP_LCD_DrawBitmap4Bits(int16_t x, int16_t y, const unsigned char *image, i
 //        h     number of pixels tall
 // Output: none
 // Must be less than or equal to 128 pixels wide by 128 pixels high
-void BSP_LCD_DrawBitmap24bits(int16_t x, int16_t y, uint16_t *image, int16_t w, int16_t h){
+void BSP_LCD_DrawBitmap24bits(int16_t x, int16_t y, uint16_t *image, int16_t w, int16_t h)
+{
   int16_t skipC = 0;                      // non-zero if columns need to be skipped due to clipping
   int16_t originalWidth = w;              // save this value; even if not all columns fit on the screen, the image is still this width in ROM
   int i = w*(h - 1);
@@ -2925,7 +2940,7 @@ void BSP_LCD_Rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 }
 
 //Leandro (19/03/2019)
-//------------BSP_DrawCircle---------------
+//------------BSP_LCD_Circle---------------
 // Draw a circle at the given coordinates with the given center, radius, and color.
 // Requires (360*11 + 360*2) bytes of transmission (assuming image fully on screen)
 // Input: x     horizontal position of the center of the circle, columns from the left edge
@@ -2935,27 +2950,158 @@ void BSP_LCD_Rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 // Output: none
 void BSP_LCD_Circle(int16_t x, int16_t y, int16_t r, uint16_t color) 
 {
-	int16_t px,py,i,j;
-  // rudimentary clipping (drawChar w/big text requires this)
-  if((x >= _width) || (y >= _height)) return;
+//	int16_t px,py,i,j,px_ant,py_ant;
+//  // rudimentary clipping (drawChar w/big text requires this)
+//  if((x >= _width) || (y >= _height)) return;
 
-	//Otimiza o tempo de plotagem
-	if(r<20) j=3;
-	else if(r<40) j=2;
-	else j=1;
+//	//Otimiza o tempo de plotagem
+//	if(r<20) j=3;
+//	else if(r<40) j=2;
+//	else j=1;
+//	
+//	//Evita pular um pixel
+//	px_ant = x + r*cos((2*3.1415)*0/360);
+//	py_ant = y - r*sin((2*3.1415)*0/360);
+//	
+//	//Plota 360/j pontos
+//	for(i=0; i<360; i=i+j)
+//	{
+//		px = x + r*cos((2*3.1415)*i/360);
+//		
+//		//Se pular um pixel, redesenha com o y anterior
+//		if(i<=180)
+//		{
+//			if(px_ant > (px+1))
+//				BSP_LCD_DrawPixel(px+1, py_ant, color);
+//		}
+//		else
+//		{
+//			if(px_ant < (px-1))
+//				BSP_LCD_DrawPixel(px-1, py_ant, color);
+//		}
+//		
+//		
+//		py = y - r*sin((2*3.1415)*i/360);
+//		
+//		//Se pular um pixel, redesenha com o y anterior
+//		if(i<=180)
+//		{
+//			if(py_ant > (py+1))
+//				BSP_LCD_DrawPixel(px_ant, py+1, color);
+//		}
+//		else
+//		{
+//			if(py_ant < (py-1))
+//				BSP_LCD_DrawPixel(px_ant, py-1, color);
+//		}
+//		
+//		//Atualiza px e py
+//		px_ant = px;
+//		py_ant = py;
+//		
+////		BSP_LCD_SetCursor(0,1);
+////		BSP_LCD_OutUDec4(px, color);
+////		BSP_LCD_SetCursor(0,2);
+////		BSP_LCD_OutUDec4(py, color);
+
+//		if((px >= 0) && (px < 128))
+//			if((py >= 0) && (py < 128))
+//				BSP_LCD_DrawPixel(px, py, color);
+//	}
 	
-	//Plota 360/j pontos
-	for(i=0; i<360; i=i+1)
-	{
-		px = x + r*sin((2*3.1415)*i/360);
-		py = y + r*cos((2*3.1415)*i/360);
-//		BSP_LCD_SetCursor(0,1);
-//		BSP_LCD_OutUDec4(px, color);
-//		BSP_LCD_SetCursor(0,2);
-//		BSP_LCD_OutUDec4(py, color);
+	//Jaemilton way
+	//Garante que os parâmetros passados sao validos
+	if (x >= 128 || y >= 128) return;
+	if (r == 0) return;
+	if ((x - r) < 0) return;
+	if ((y - r) < 0) return;
+	if ((x + r) > (128)) return;
+	if ((y + r) > (128)) return;
 
-		if((px >= 0) && (px < 128))
-			if((py >= 0) && (py < 128))
-				BSP_LCD_DrawPixel(px, py, color);
-	}	
+	//Desenha o centro do circulo
+	//BSP_LCD_DrawPixel(x, y, color);
+
+	for(int i = 0; i <= 90; i++)
+	{
+		unsigned char xrad, yrad;
+		double angulo = i * 3.14159265 / 180;
+		xrad = r * cos(angulo);
+		yrad = r * sin(angulo);
+
+		BSP_LCD_DrawPixel(x + xrad, y + yrad, color);
+		BSP_LCD_DrawPixel(x - xrad, y - yrad, color);
+		if (xrad > 0 && yrad > 0)
+		{
+			BSP_LCD_DrawPixel(x + xrad, y - yrad, color);
+			BSP_LCD_DrawPixel(x - xrad, y + yrad, color);
+		}
+	}
+}
+
+//Leandro (31/03/2019)
+//------------BSP_LCD_FillCircle-------------
+// Draw a filled circle at the given coordinates with the given center, radius, and color.
+// Requires (360*11 + 360*2) bytes of transmission (assuming image fully on screen)
+// Input: x     horizontal position of the center of the circle, columns from the left edge
+//        y     vertical position of the center of the circle, rows from the top edge
+//        r     radius of the circle
+//        color 16-bit color, which can be produced by BSP_LCD_Color565()
+// Output: none
+void BSP_LCD_FillCircle(int16_t x, int16_t y, int16_t r, uint16_t color) 
+{
+//	int16_t px,py,i,j,px_ant;
+//  // rudimentary clipping (drawChar w/big text requires this)
+//  if((x >= _width) || (y >= _height)) return;
+
+//	//Otimiza o tempo de plotagem
+//	if(r<20) j=3;
+//	else if(r<40) j=2;
+//	else j=1;
+//	
+//	//Evita pular um pixel
+//	px_ant = x + r*cos((2*3.1415)*0/360);
+//	
+//	//Plota 360/j pontos
+//	for(i=0; i<=180; i=i+j)
+//	{
+//		px = x + r*cos((2*3.1415)*i/360);
+//		
+//		//Se pular um pixel, redesenha com o y anterior
+//		if(px_ant > (px+1))
+//			BSP_LCD_DrawFastVLine(px+1, py, (y-py)*2+1, color);
+//		//Atualiza px
+//		px_ant = px;
+//		
+//		py = y - r*sin((2*3.1415)*i/360);
+
+//		if((px >= 0) && (px < 128))
+//			if((py >= 0) && (py < 128))
+//				BSP_LCD_DrawFastVLine(px, py, (y-py)*2+1, color);
+//	}
+
+	//Jaemilton way
+	//Garante que os parametro passados sao validos
+	if (x >= 128 || y >= 128) return;
+	if (r == 0) return;
+	if ((x - r) < 0) return;
+	if ((y - r) < 0) return;
+	if ((x + r) > (128)) return;
+	if ((y + r) > (128)) return;
+
+	//Desenha o centro do circulo
+	//BSP_LCD_DrawPixel(x, y, color);
+
+	for(int i = 0; i <= 90; i++)
+	{
+		unsigned char xrad, yrad;
+		double angulo = i * 3.14159265 / 180;
+		xrad = r * cos(angulo);
+		yrad = r * sin(angulo);
+
+		BSP_LCD_DrawFastHLine(x - xrad, y + yrad, xrad*2, color);
+		if (xrad > 0 && yrad > 0)
+		{
+			BSP_LCD_DrawFastHLine(x - xrad, y - yrad, xrad*2, color);
+		}
+	}		
 }

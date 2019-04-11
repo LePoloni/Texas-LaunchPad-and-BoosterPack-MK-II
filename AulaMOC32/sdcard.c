@@ -14,6 +14,12 @@
  *	Ainda é possível acessar o Master Boot e o Boot Record Information de cada setor.
  *	Foi definida uma função para passagem de funções de print de strings e caracteres.
  *	As funções originais foram renomeadas, Em sua maioria recebeu o prefixo SD_.
+ *	Revisada: 01/04/2019
+ *	Autor: Leandro Poloni Dantas
+ *	Versão: 2.1
+ *  Habilitado o pull-up do sinal MISO
+ *	A função SD_list_dirs_and_files foi alterada na tentativa de tornar mais rápida a busca por arquivos
+ *	A função SD_initialize_sd tenha seu tipo de retorno alterado de void para unsigned char
  */
 
 /* Part of this example (partially modified functions rcvr_datablock, rcvr_spi_m, disk_timerproc, Timer5A_Handler, Timer5_Init, is_ready, send_command and part of initialize_sd) accompanies the books
@@ -232,7 +238,7 @@ unsigned char send_command(unsigned char command, unsigned long argument, enum S
 /*
  * Initializes the SD card
  */
-void SD_initialize_sd(enum SSI SSI_number)
+unsigned char SD_initialize_sd(enum SSI SSI_number)
 {
 	unsigned char i,j;
 	unsigned char ocr[4];
@@ -261,9 +267,9 @@ void SD_initialize_sd(enum SSI SSI_number)
 	//{	
 	while(((j=send_command(CMD0, 0,SSI_number))!=1)  && ((i++)<100))
 	{
-#ifdef depura		
+//#ifdef depura		
 		prints(".");
-#endif
+//#endif
 	}
 	i=0;
 	if(j==1)
@@ -335,7 +341,9 @@ prints("r3");
 	{
 		//Leandro (28/02/2019) - ajuste de compatibilidade
 		prints("Failure in CMD0");
+		return 1;
 	}
+	return 0;
 }
 
 
@@ -431,6 +439,8 @@ void SD_startSSI2()
 #endif
 	//Leandro (19/02/2019) - Pull-up no clock
 	GPIO_PORTB_PUR_R |= 0x10;             // enable pull-up on PB4
+	//Leandro (01/04/2019) - Pull-up no MISO
+	GPIO_PORTB_PUR_R |= 0x40;             // enable pull-up on PB6
 	
 	SSI2_CR1_R &= ~SSI_CR1_SSE;		  			// Disable SSI while configuring it
 	SSI2_CR1_R &= ~SSI_CR1_MS;		  			// Set as Master
@@ -817,9 +827,28 @@ long SD_list_dirs_and_files(long next_cluster,enum name_type name, enum get_subd
 				{//Long filename text - 11th byte is 0x0F
 					if(position%32==0)
 					{//Check if file has a long filename text, normal record with short filename, unused or end of a directory
-						if(buffer[position]==0x00 || buffer[position]==0x2E)
+						
+						//Leandro (01/04/2019): Informação compplementar	
+						//If DIR_Name[0] == 0xE5, then the directory entry is free (there is no file or directory name in this entry).
+						//If DIR_Name[0] == 0x00, then the directory entry is free (same as for 0xE5), and there are no
+						//allocated directory entries after this one (all of the DIR_Name[0] bytes in all of the entries after
+						//this one are also set to 0).
+						//The special 0 value, rather than the 0xE5 value, indicates to FAT file system driver code that the
+						//rest of the entries in this directory do not need to be examined because they are all free.
+						//The first directory entry has DIR_Name set to (o prórpio diretório):
+						//".       "
+						//The second has DIR_Name set to (o diretório pai):
+						//"..      "
+						
+						if(buffer[position]==0x00 || buffer[position]==0x2E)	//0x00 = diretório vazio, 2E = '.' = o próprio diretório
 						{//End of directory
 							position=position+32;
+							//Leandro (01/04/2019): Tentativa de acelerar a leitura do cartão
+							//Quando o nome do arquivo começa com 0x00 é sinal que não há mais nada no diretório
+							if(buffer[position]==0x00)
+							{
+								position=512;	//Faz saltar para o próximo setor
+							}
 						}
 						else
 						{

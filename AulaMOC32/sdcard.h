@@ -79,7 +79,7 @@ void SD_startSSI2(void);
 void startSSI3(void);
 void sd_write(char message,enum SSI);
 unsigned char sd_read(enum SSI);
-void SD_initialize_sd(enum SSI);
+unsigned char SD_initialize_sd(enum SSI);
 void SD_cs_high(enum SSI);
 void SD_cs_low(enum SSI);
 void dummy_clock(enum SSI);

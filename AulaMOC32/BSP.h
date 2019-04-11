@@ -863,7 +863,7 @@ uint8_t writedata(uint8_t c);
 void BSP_LCD_Rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 
 //Leandro (19/03/2019)
-//------------BSP_DrawCirce---------------
+//------------BSP_LCD_Circle---------------
 // Draw a circle at the given coordinates with the given center, radius, and color.
 // Requires (360*11 + 360*2) bytes of transmission (assuming image fully on screen)
 // Input: x     horizontal position of the center of the circle, columns from the left edge
@@ -872,3 +872,14 @@ void BSP_LCD_Rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 //        color 16-bit color, which can be produced by BSP_LCD_Color565()
 // Output: none
 void BSP_LCD_Circle(int16_t x, int16_t y, int16_t r, uint16_t color);
+
+//Leandro (31/03/2019)
+//------------BSP_LCD_FillCircle-------------
+// Draw a filled circle at the given coordinates with the given center, radius, and color.
+// Requires (360*11 + 360*2) bytes of transmission (assuming image fully on screen)
+// Input: x     horizontal position of the center of the circle, columns from the left edge
+//        y     vertical position of the center of the circle, rows from the top edge
+//        r     radius of the circle
+//        color 16-bit color, which can be produced by BSP_LCD_Color565()
+// Output: none
+void BSP_LCD_FillCircle(int16_t x, int16_t y, int16_t r, uint16_t color);
