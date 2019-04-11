@@ -211,7 +211,12 @@ int main()
 										BSP_LCD_Circle(64, 64, i, LCD_BLUE);
 									}
 					break;
-				case 'r': //MKII_Buzzer_Init(440, 50);
+				case 'r': BSP_LCD_FillCircle(30, 30, 20, LCD_BLUE);
+									BSP_LCD_FillCircle(90, 30, 20, LCD_GREEN);
+									BSP_LCD_FillCircle(30, 90, 20, LCD_CYAN);
+									BSP_LCD_FillCircle(90, 90, 20, LCD_RED);
+					break;
+				case 's': //MKII_Buzzer_Init(440, 50);
 									MKII_Timer1_PWM_Init(440, 50);
 									msTicks=0; while(msTicks<200);
 									//MKII_Buzzer_Set(2048, 50);
@@ -414,11 +419,11 @@ int main()
 	//GPIOF_Inicializa();
 	LedRed_Inicializa();	
 	GPIOF->DATA |= Red;
-	
+	UART0_Inicializa_115200bps_16MHz();	
 	BSP_LCD_Init();
-  BSP_LCD_FillScreen(BSP_LCD_Color565(0xFF, 0xFF, 0xFF));
+  	
+	BSP_LCD_FillScreen(BSP_LCD_Color565(0xFF, 0xFF, 0xFF));
 
-	UART0_Inicializa_115200bps_16MHz();
 	UART0_TxString("========> Teste SD Card <========"); UART0_TxChar(0x0D); UART0_TxChar(0x0A);
 
 	//SysTick_Inicializa();
@@ -432,7 +437,7 @@ int main()
 	//Iniciliza o SSI2
 	SD_startSSI2();								//OK: RB5 - X Joystick / CS - SDCard --> trocar para RE0
 	//Inicializa o SD Card
-	SD_initialize_sd(SSI_2);
+	while(SD_initialize_sd(SSI_2));	//Aguarda inicializar com sucesso
 	//Desabilita o SD Card
 	SD_cs_high(SSI_2);
 	//Altera a velocidade de comunicação para 8 Mbps
@@ -830,7 +835,7 @@ int main()
 }
 //*/
 //Função principal Aula 3 - Timer com PWM (Servo e Buzzer) - 30/03/19
-//*/
+/*
 int main()
 {
 	//Variáveis locais
@@ -889,6 +894,186 @@ int main()
 }
 //*/
 
+//Função principal Teste Acelerômetro KXTC9-2050
+/*
+int main()
+{
+	//Variáveis locais
+	unsigned char dado;
+	int16_t x,y,z,click, angulo;
+	uint8_t nota = 0;
+	//bool lado = 0;
+	int delay;
+
+	//Setup
+	LedRed_Inicializa();
+	UART0_Inicializa_115200bps_16MHz();
+	SysTick_Inicializa();
+	SysTick_Config(SystemCoreClock / 1000);      // 1 int./ms (interrupção configurada intrinsecamente)
+	BSP_LCD_Init();
+  BSP_LCD_FillScreen(BSP_LCD_Color565(0xFF, 0xFF, 0xFF));
+	BSP_Joystick_Init();
+	BSP_Accelerometer_Init();
+	BSP_Accelerometer_Input(&x, &y, &z);
+	
+	BSP_LCD_DrawString(0, 0, "Acel. KXTC9-2050", LCD_WHITE);
+	BSP_LCD_DrawString(0, 1, "X ", LCD_WHITE);
+	BSP_LCD_DrawString(0, 2, "Y ", LCD_WHITE);
+	BSP_LCD_DrawString(0, 3, "Z ", LCD_WHITE);
+	
+	while(1)
+	{
+		BSP_Accelerometer_Input(&x, &y, &z);
+		BSP_LCD_SetCursor(2, 1);
+		BSP_LCD_OutUDec4(x, LCD_WHITE);
+		BSP_LCD_SetCursor(2, 2);
+		BSP_LCD_OutUDec4(y, LCD_WHITE);
+		BSP_LCD_SetCursor(2, 3);
+		BSP_LCD_OutUDec4(z, LCD_WHITE);
+		
+		delay = 0;
+		while(delay++<100000);
+	}
+}
+//*/
+
+//Função principal Nível Digital com o Acelerômetro KXTC9-2050
+/*
+int main()
+{
+	//Variáveis locais
+	unsigned char dado;
+	int16_t x,y,z,xn,yn,xn_ant,yn_ant,xg,yg;
+	uint8_t nota = 0;
+	//bool lado = 0;
+	int delay;
+
+	//Setup
+	LedRed_Inicializa();
+	UART0_Inicializa_115200bps_16MHz();
+	SysTick_Inicializa();
+	SysTick_Config(SystemCoreClock / 1000);      // 1 int./ms (interrupção configurada intrinsecamente)
+	BSP_LCD_Init();
+  BSP_LCD_FillScreen(BSP_LCD_Color565(0xFF, 0xFF, 0xFF));
+	BSP_Joystick_Init();
+	BSP_Accelerometer_Init();
+	BSP_Accelerometer_Input(&x, &y, &z);
+	
+
+	BSP_LCD_FillScreen(LCD_BLACK);
+	BSP_LCD_FillCircle(64, 64, 60, LCD_WHITE);
+	BSP_LCD_DrawFastHLine(4, 64, 120, LCD_YELLOW);
+	BSP_LCD_DrawFastVLine(64, 4, 120, LCD_YELLOW);
+
+	BSP_LCD_DrawString(0, 0, "Nivel Digital XY", LCD_WHITE);
+	BSP_LCD_DrawString(0, 1, "X ", LCD_WHITE);
+	BSP_LCD_DrawString(0, 2, "Y ", LCD_WHITE);
+	
+	xn = yn = xn_ant = yn_ant = 64;
+	BSP_LCD_FillCircle(xn, yn, 10, LCD_RED);
+	
+	// Sensibilidade de 660 mV/g --> CAD = 204,6 ~ 205
+	// Offset a 0g de 1,65 V --> CAD = 512
+	//
+	// CAD:  512 + 205 <= X <= 512 - 205
+	// Tela: 20        <= X <= 108
+	// DrawX = a.CAD + b, onde a = (20-108)/((512+205)-(512-205)) = -88/410 = -0,2146...
+	//										onde b = 108 - (-88/410) * 307 = 173,8926 ~ 174
+	// CAD:  512 - 205 <= Y <= 512 + 205
+	// Tela: 20        <= Y <= 108
+	// DrawY = a.CAD + b, onde a = (108-20)/((512+205)-(512-205)) = 88/410 = 0,2146...
+	//										onde b = 20 - (88/410) * 307 = -45,8926 ~ -46
+	//
+	// DrawG = a.CAD + b, onde a = (1-(-1))/((512+205)-(512-205)) = 2/410 = 1/205
+	//                    onde b = -1/205 * 512 = -2,4975 ~ -2,5
+	
+	while(1)
+	{
+		//Lê o acelerômetro
+		BSP_Accelerometer_Input(&x, &y, &z);
+		//Calcula a nova posição do nível		
+		xn = -(88 * x) / 410 + 174;
+		yn = (88 * y) / 410 - 46;
+		//Teste para ver se houve alteração
+		if((xn != xn_ant) || (yn != yn_ant))
+		{
+			//Apaga o circulo anterior
+			BSP_LCD_FillCircle(xn_ant, yn_ant, 10, LCD_WHITE);
+			//Redesenha os eixos
+			BSP_LCD_DrawFastHLine(4, 64, 120, LCD_YELLOW);
+			BSP_LCD_DrawFastVLine(64, 4, 120, LCD_YELLOW);
+			//Calcula a força g nos eixos
+			xg = (10*x) /205 - 25;	//Valor x10
+			yg = (10*y) /205 - 25;	//Valor x10
+			//Atualiza os valores
+			BSP_LCD_SetCursor(2, 1);
+			//BSP_LCD_OutUDec4(x, LCD_WHITE);
+			if(xg>=0)
+				BSP_LCD_OutUFix2_1(xg, LCD_WHITE);
+			else
+			{
+				BSP_LCD_OutUFix2_1(-xg, LCD_WHITE);
+				BSP_LCD_DrawString(2, 1, "-", LCD_WHITE);
+			}
+			BSP_LCD_SetCursor(2, 2);
+			//BSP_LCD_OutUDec4(y, LCD_WHITE);
+			if(yg>=0)
+				BSP_LCD_OutUFix2_1(yg, LCD_WHITE);
+			else
+			{
+				BSP_LCD_OutUFix2_1(-yg, LCD_WHITE);
+				BSP_LCD_DrawString(2, 2, "-", LCD_WHITE);
+			}
+			//Atualiza o circulo
+			BSP_LCD_FillCircle(xn, yn, 10, LCD_RED);
+		}
+		//Salva o valor anterior
+		xn_ant = xn;
+		yn_ant = yn;		
+		//Aguarda alguns ms
+		msTicks = 0;
+		while(msTicks<50);
+	}
+}
+//*/
+
+//Função principal Máquina de Estados
+//*
+//Representa um estado da FSM 
+struct State {
+      unsigned char 	out;   	//Saída para o estado
+      unsigned short 	wait;     	//Tempo de espera do estado
+      unsigned char 	next[2]; 	//Vetor de próximos estados
+};
+typedef const struct State tipoS;
+//Apelidos para referenciar os estados da FSM
+#define Par 0
+#define Impar 1
+//Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
+tipoS Fsm[2] = { 
+      {0, 100, {Par, Impar}},
+      {1, 100, {Impar, Par}}
+}; 
+unsigned char cState; 		//Estado atual é Par ou Ímpar
+int main(void) 
+{
+	unsigned char input;
+	GPIOF_Inicializa();
+	SysTick_Inicializa();
+	cState = Par; 		//Initial State
+	while (1) 
+	{
+		//1. Saída baseado no estado atual
+		GPIOPinWrite(GPIOF_BASE, GPIO_PIN_2, 0xFF); 	//Saída em PF2 (led Azul)
+		//2. Aguarda o tempo predefinido para o estado
+		SysTick_Wait10ms(Fsm[cState].wait);   
+		//3. Lê a entrada
+		input = GPIOPinRead(GPIOF_BASE, GPIO_PIN_4)>>4;	//Entrada 0/1: Sw1 Pres./Não Pres.
+		//4. Vai para o próximo estado, que depende da entrada e do estado atual
+		cState = Fsm[cState].next[input]; 
+	}
+}
+//*/
 //*****************************************************************************
 //	Funções Auxiliares
 //*****************************************************************************
