@@ -1,1 +1,2 @@
-Este arquivo foi criado apenas para testar o push do Git para o GitHub ap�s cloanar o o projeto do GitHub.
+Este arquivo foi criado apenas para testar o push do Git para o GitHub após cloanar o o projeto do GitHub.
+Esei este arquivo para testar a sincronização após uma alteração pelo GitHub.
